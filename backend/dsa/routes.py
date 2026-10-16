@@ -19,7 +19,10 @@ def create():
 @jwt_required()
 def list_questions():
     user_id = get_jwt_identity()
-    return jsonify(get_questions(user_id)), 200
+    page = request.args.get('page', type=int)
+    per_page = request.args.get('per_page', type=int)
+    search = request.args.get('search', default='', type=str)
+    return jsonify(get_questions(user_id, page=page, per_page=per_page, search=search)), 200
 
 
 @dsa_bp.route('/<question_id>', methods=['GET'])

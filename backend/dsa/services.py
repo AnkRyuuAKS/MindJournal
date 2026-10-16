@@ -33,9 +33,30 @@ def create_question(user_id: str, data: dict) -> dict:
     return {"question": _serialize(doc)}
 
 
-def get_questions(user_id: str) -> dict:
-    cursor = dsa_collection.find({"user_id": user_id}).sort("created_at", -1)
-    return {"questions": [_serialize(q) for q in cursor]}
+def get_questions(user_id: str, page: int = None, per_page: int = None, search: str = "") -> dict:
+    query = {"user_id": user_id}
+    if search:
+        query["$or"] = [
+            {"heading": {"$regex": search, "$options": "i"}},
+            {"number": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"approach": {"$regex": search, "$options": "i"}},
+        ]
+    total = dsa_collection.count_documents(query)
+    cursor = dsa_collection.find(query).sort("created_at", -1)
+    if page is not None and per_page is not None and per_page > 0:
+        skip = (page - 1) * per_page
+        cursor = cursor.skip(skip).limit(per_page)
+        questions = [_serialize(q) for q in cursor]
+        return {
+            "questions": questions,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": (total + per_page - 1) // per_page,
+        }
+    questions = [_serialize(q) for q in cursor]
+    return {"questions": questions, "total": total}
 
 
 def get_question(user_id: str, question_id: str) -> dict:

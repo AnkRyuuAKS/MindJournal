@@ -2,25 +2,15 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getEntries, deleteEntry, toggleFavorite } from '../api/entriesClient';
 import EntryCard from '../components/EntryCard';
-import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-const MOOD_FILTERS = [
-  { value: '', label: 'All Moods' },
-  { value: 'happy', label: '😊 Happy' },
-  { value: 'excited', label: '🤩 Excited' },
-  { value: 'calm', label: '😌 Calm' },
-  { value: 'neutral', label: '😐 Neutral' },
-  { value: 'sad', label: '😢 Sad' },
-  { value: 'anxious', label: '😰 Anxious' },
-  { value: 'angry', label: '😠 Angry' },
-];
+import { MOODS } from '../components/MoodSelector';
 
 export default function EntriesPage() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [mood, setMood] = useState('');
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -28,26 +18,41 @@ export default function EntriesPage() {
   const loadEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getEntries({ page, per_page: 9, search, mood });
+      const data = await getEntries({
+        page,
+        per_page: 9,
+        search,
+        mood,
+        favorite: favoriteOnly ? 'true' : '',
+      });
       setEntries(data.entries || []);
       setTotalPages(data.pages || 1);
       setTotal(data.total || 0);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load entries', e);
     } finally {
       setLoading(false);
     }
-  }, [page, search, mood]);
+  }, [page, search, mood, favoriteOnly]);
 
-  useEffect(() => { loadEntries(); }, [loadEntries]);
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
 
-  const handleSearch = useCallback((val) => {
-    setSearch(val);
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
     setPage(1);
-  }, []);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setMood('');
+    setFavoriteOnly(false);
+    setPage(1);
+  };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this entry?')) return;
+    if (!confirm('Delete this journal entry?')) return;
     await deleteEntry(id);
     loadEntries();
   };
@@ -58,46 +63,155 @@ export default function EntriesPage() {
   };
 
   return (
-    <div className="p-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Playfair Display, serif' }}>Journal Entries</h1>
-          <p className="text-slate-500 text-sm mt-1">{total} entries total</p>
+          <div className="flex items-center gap-3">
+            <h1
+              className="text-2xl md:text-3xl font-bold text-white"
+              style={{ fontFamily: 'Playfair Display, serif' }}
+            >
+              Journal Entries
+            </h1>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              {total} {total === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
+          <p className="text-slate-400 text-sm mt-1">
+            Browse, search, and reflect on your past thoughts and memories.
+          </p>
         </div>
+
         <Link
           to="/entries/new"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20 shrink-0"
         >
-          ✏️ New Entry
+          <span>✏️</span> New Entry
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="flex-1">
-          <SearchBar onSearch={handleSearch} placeholder="Search entries..." />
+      {/* Filter and Search Bar */}
+      <div className="bg-[#16162a] border border-white/5 rounded-2xl p-4 md:p-5 mb-8 space-y-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
+              🔍
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={handleSearchChange}
+              placeholder="Search by title, thoughts, or content..."
+              className="w-full bg-[#0f0f1a] border border-white/10 rounded-xl pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all"
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Favorites Filter Toggle */}
+          <button
+            onClick={() => {
+              setFavoriteOnly((prev) => !prev);
+              setPage(1);
+            }}
+            className={`px-4 py-2.5 rounded-xl text-xs font-medium border transition-all flex items-center justify-center gap-2 shrink-0 ${
+              favoriteOnly
+                ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow-sm shadow-yellow-500/10'
+                : 'bg-[#0f0f1a] text-slate-400 hover:text-white border-white/10 hover:border-white/20'
+            }`}
+          >
+            <span>★</span>
+            <span>Favorites only</span>
+          </button>
         </div>
-        <select
-          value={mood}
-          onChange={(e) => { setMood(e.target.value); setPage(1); }}
-          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
-        >
-          {MOOD_FILTERS.map((m) => (
-            <option key={m.value} value={m.value} className="bg-[#16162a]">{m.label}</option>
+
+        {/* Mood filter pill chips */}
+        <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-white/5">
+          <span className="text-xs text-slate-500 mr-1">Filter by Mood:</span>
+          <button
+            onClick={() => {
+              setMood('');
+              setPage(1);
+            }}
+            className={`text-xs px-3 py-1 rounded-lg transition-all ${
+              mood === ''
+                ? 'bg-indigo-600 text-white font-medium shadow'
+                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            All
+          </button>
+          {MOODS.map((m) => (
+            <button
+              key={m.value}
+              onClick={() => {
+                setMood(mood === m.value ? '' : m.value);
+                setPage(1);
+              }}
+              className={`text-xs px-3 py-1 rounded-lg transition-all flex items-center gap-1 border ${
+                mood === m.value
+                  ? 'border-indigo-500/50 bg-indigo-500/20 text-white font-medium'
+                  : 'border-transparent bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <span>{m.emoji}</span>
+              <span>{m.label}</span>
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
+      {/* Entries Content */}
       {loading ? (
-        <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
+        <div className="flex justify-center py-24">
+          <LoadingSpinner size="lg" text="Loading journal entries..." />
+        </div>
       ) : entries.length === 0 ? (
-        <div className="text-center py-16 bg-[#16162a] border border-white/5 rounded-2xl">
-          <p className="text-4xl mb-3">📝</p>
-          <p className="text-white font-medium mb-2">No entries found</p>
-          <p className="text-slate-500 text-sm">Try adjusting your search or filters</p>
+        <div className="text-center py-20 bg-[#16162a] border border-white/5 rounded-2xl p-8 max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-3xl flex items-center justify-center mx-auto mb-4">
+            📝
+          </div>
+          <h3
+            className="text-xl font-bold text-white mb-2"
+            style={{ fontFamily: 'Playfair Display, serif' }}
+          >
+            {search || mood || favoriteOnly ? 'No matching entries' : 'No journal entries yet'}
+          </h3>
+          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+            {search || mood || favoriteOnly
+              ? 'Try modifying or clearing your filters to see more results.'
+              : 'Write your thoughts, milestones, or memories to start building your personal journal.'}
+          </p>
+
+          {search || mood || favoriteOnly ? (
+            <button
+              onClick={handleClearFilters}
+              className="inline-flex px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-indigo-400 text-xs font-semibold transition-colors"
+            >
+              Clear All Filters
+            </button>
+          ) : (
+            <Link
+              to="/entries/new"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20"
+            >
+              <span>✏️</span> Write First Entry
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
           {entries.map((entry) => (
             <EntryCard
               key={entry.id}
@@ -109,23 +223,23 @@ export default function EntriesPage() {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-8">
+        <div className="flex items-center justify-center gap-2 mt-10">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 disabled:opacity-40 transition-colors text-sm"
+            className="px-4 py-2 rounded-xl bg-[#16162a] border border-white/5 text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-40 transition-colors text-xs font-medium cursor-pointer"
           >
-            ← Prev
+            ← Previous
           </button>
-          <span className="px-4 py-2 text-sm text-slate-400">
-            {page} / {totalPages}
+          <span className="px-4 py-2 text-xs font-medium text-slate-400 bg-[#16162a] border border-white/5 rounded-xl">
+            Page {page} of {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 disabled:opacity-40 transition-colors text-sm"
+            className="px-4 py-2 rounded-xl bg-[#16162a] border border-white/5 text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-40 transition-colors text-xs font-medium cursor-pointer"
           >
             Next →
           </button>

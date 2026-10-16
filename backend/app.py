@@ -26,6 +26,7 @@ def create_app():
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
 
+    #this bascically fetches the standalone rotues from other module and tell the app what is the rotute is
     app.register_blueprint(auth_bp)
     app.register_blueprint(entries_bp)
     app.register_blueprint(uploads_bp)
@@ -51,10 +52,13 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         return jsonify({"error": "Internal server error.", "detail": str(e)}), 500
-
     return app
 
+# f you run the script directly (e.g., executing python app.py in your terminal):
+# Python assigns the string "__main__" to __name__.
 
+# If the file is imported into another script (e.g., import app inside another file):
+# Python sets __name__ equal to the file's name (e.g., "app").
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, port=5000)

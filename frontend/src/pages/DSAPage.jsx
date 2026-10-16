@@ -1,211 +1,188 @@
-import { useState, useEffect } from 'react';
-import { getDSAQuestions, createDSAQuestion, deleteDSAQuestion } from '../api/dsaClient';
-
-const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { getDSAQuestions, deleteDSAQuestion } from '../api/dsaClient';
+import DSACard from '../components/DSACard';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function DSAPage() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [expanded, setExpanded] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [globalReveal, setGlobalReveal] = useState(null);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    number: '',
-    heading: '',
-    description: '',
-    approach: '',
-  });
 
   useEffect(() => {
-    load();
+    loadQuestions();
   }, []);
 
-  const load = async () => {
+  const loadQuestions = async () => {
+    setLoading(true);
+    setError('');
     try {
       const data = await getDSAQuestions();
       setQuestions(data.questions || []);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load DSA revision questions. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSaving(true);
+  const handleDelete = async (id) => {
     try {
-      const data = await createDSAQuestion(form);
-      setQuestions((q) => [data.question, ...q]);
-      setForm({ number: '', heading: '', description: '', approach: '' });
-      setShowForm(false);
+      await deleteDSAQuestion(id);
+      setQuestions((prev) => prev.filter((q) => q.id !== id));
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save question.');
-    } finally {
-      setSaving(false);
+      console.error('Failed to delete question', err);
+      alert('Failed to delete question. Please try again.');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this question?')) return;
-    await deleteDSAQuestion(id);
-    setQuestions((q) => q.filter((x) => x.id !== id));
-    if (expanded === id) setExpanded(null);
+  // Filter questions based on search query (number, heading, description, approach)
+  const filteredQuestions = useMemo(() => {
+    if (!search.trim()) return questions;
+    const q = search.toLowerCase();
+    return questions.filter(
+      (item) =>
+        (item.number && item.number.toLowerCase().includes(q)) ||
+        (item.heading && item.heading.toLowerCase().includes(q)) ||
+        (item.description && item.description.toLowerCase().includes(q)) ||
+        (item.approach && item.approach.toLowerCase().includes(q))
+    );
+  }, [questions, search]);
+
+  const handleToggleAll = () => {
+    setGlobalReveal((prev) => (prev === true ? false : true));
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fade-in">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Playfair Display, serif' }}>
-            DSA Questions
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Track problems, approaches & learnings</p>
+          <div className="flex items-center gap-3">
+            <h1
+              className="text-2xl md:text-3xl font-bold text-white"
+              style={{ fontFamily: 'Playfair Display, serif' }}
+            >
+              DSA Revision Cards
+            </h1>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              {questions.length} {questions.length === 1 ? 'card' : 'cards'}
+            </span>
+          </div>
+          <p className="text-slate-400 text-sm mt-1">
+            Active recall cards to revise problem patterns, approaches, and complexities.
+          </p>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
+
+        <Link
+          to="/dsa/new"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all shadow-lg shadow-emerald-600/20 shrink-0"
         >
-          {showForm ? '✕ Cancel' : '+ Add Question'}
-        </button>
+          <span>➕</span> Add Revision Question
+        </Link>
       </div>
 
-      {/* Form */}
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[#16162a] border border-white/10 rounded-2xl p-6 mb-6 space-y-4"
-        >
-          {error && (
-            <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">
-              {error}
-            </p>
-          )}
-          <div className="flex gap-3">
-            <div className="w-28">
-              <label className="block text-xs text-slate-500 mb-1.5">Number / ID</label>
-              <input
-                name="number"
-                value={form.number}
-                onChange={handleChange}
-                placeholder="#1 / LC-42"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 transition-colors"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs text-slate-500 mb-1.5">Heading *</label>
-              <input
-                name="heading"
-                value={form.heading}
-                onChange={handleChange}
-                required
-                placeholder="Two Sum, Merge Intervals…"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Description</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={3}
-              placeholder="Briefly describe the problem…"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 transition-colors resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Thinking & Approach</label>
-            <textarea
-              name="approach"
-              value={form.approach}
-              onChange={handleChange}
-              rows={5}
-              placeholder="Walk through your thought process, patterns noticed, time/space complexity…"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 transition-colors resize-none leading-relaxed"
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save Question'}
-            </button>
-          </div>
-        </form>
+      {/* Error alert */}
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={loadQuestions}
+            className="underline hover:text-red-300 ml-4 text-xs font-medium"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
-      {/* List */}
+      {/* Search and Quick Filters Toolbar */}
+      <div className="bg-[#16162a] border border-white/5 rounded-2xl p-4 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Search Input */}
+        <div className="relative flex-1">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
+            🔍
+          </span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title, #number, problem details, or approach..."
+            className="w-full bg-[#0f0f1a] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Global Reveal / Recall Mode Toggle */}
+        {questions.length > 0 && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleToggleAll}
+              className="text-xs px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors flex items-center gap-1.5"
+            >
+              <span>{globalReveal === true ? '🙈' : '👁️'}</span>
+              <span>{globalReveal === true ? 'Hide All Approaches' : 'Reveal All Approaches'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Content Area */}
       {loading ? (
-        <div className="text-center py-16 text-slate-500">Loading…</div>
+        <div className="py-24">
+          <LoadingSpinner />
+        </div>
       ) : questions.length === 0 ? (
-        <div className="text-center py-20 bg-[#16162a] border border-white/5 rounded-2xl">
-          <p className="text-4xl mb-3">🧠</p>
-          <p className="text-white font-medium mb-1">No questions yet</p>
-          <p className="text-slate-500 text-sm">Add your first DSA problem above</p>
+        /* Empty State */
+        <div className="text-center py-20 bg-[#16162a] border border-white/5 rounded-2xl p-8 max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-3xl flex items-center justify-center mx-auto mb-4">
+            🧠
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+            No Revision Cards Yet
+          </h3>
+          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+            Start building your personal DSA revision library. Capture tricky questions, algorithms, and active-recall notes.
+          </p>
+          <Link
+            to="/dsa/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all shadow-lg shadow-emerald-600/20"
+          >
+            <span>➕</span> Add Your First DSA Question
+          </Link>
+        </div>
+      ) : filteredQuestions.length === 0 ? (
+        /* No search results */
+        <div className="text-center py-16 bg-[#16162a] border border-white/5 rounded-2xl p-6">
+          <p className="text-3xl mb-2">🔍</p>
+          <p className="text-white font-medium mb-1">No matching revision cards found</p>
+          <p className="text-slate-500 text-xs mb-4">Try searching with a different keyword, question number, or pattern.</p>
+          <button
+            onClick={() => setSearch('')}
+            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-400 transition-colors"
+          >
+            Clear Search Filter
+          </button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {questions.map((q) => (
-            <div
+        /* Cards Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {filteredQuestions.map((q) => (
+            <DSACard
               key={q.id}
-              className="bg-[#16162a] border border-white/5 rounded-2xl overflow-hidden transition-all duration-200 hover:border-emerald-500/20"
-            >
-              {/* Row */}
-              <div
-                className="flex items-center gap-4 px-5 py-4 cursor-pointer"
-                onClick={() => setExpanded(expanded === q.id ? null : q.id)}
-              >
-                {q.number && (
-                  <span className="shrink-0 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">
-                    {q.number}
-                  </span>
-                )}
-                <p className="flex-1 text-sm font-medium text-white truncate">{q.heading}</p>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-slate-600">
-                    {new Date(q.created_at).toLocaleDateString()}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(q.id); }}
-                    className="text-slate-600 hover:text-red-400 transition-colors text-sm"
-                    title="Delete"
-                  >
-                    🗑
-                  </button>
-                  <span className={`text-slate-500 text-xs transition-transform duration-200 ${expanded === q.id ? 'rotate-180' : ''}`}>
-                    ▼
-                  </span>
-                </div>
-              </div>
-
-              {/* Expanded */}
-              {expanded === q.id && (
-                <div className="px-5 pb-5 border-t border-white/5 space-y-4 pt-4">
-                  {q.description && (
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Description</p>
-                      <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{q.description}</p>
-                    </div>
-                  )}
-                  {q.approach && (
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Thinking & Approach</p>
-                      <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap font-mono bg-white/3 rounded-xl p-3">{q.approach}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              question={q}
+              onDelete={handleDelete}
+              globalReveal={globalReveal}
+            />
           ))}
         </div>
       )}

@@ -3,16 +3,19 @@ from collections import Counter
 from extensions import mongo_db
 
 entries_collection = mongo_db["journal_entries"]
+dsa_collection = mongo_db["dsa_questions"]
 
 MOODS = ["happy", "excited", "calm", "sad", "anxious", "angry", "neutral"]
 
 
 def get_stats(user_id: str) -> dict:
     entries = list(entries_collection.find({"user_id": user_id}))
+    total_dsa = dsa_collection.count_documents({"user_id": user_id})
     total = len(entries)
     if total == 0:
         return {
             "total_entries": 0,
+            "total_dsa": total_dsa,
             "streak": 0,
             "mood_distribution": {m: 0 for m in MOODS},
             "entries_this_week": 0,
@@ -47,6 +50,7 @@ def get_stats(user_id: str) -> dict:
 
     return {
         "total_entries": total,
+        "total_dsa": total_dsa,
         "streak": streak,
         "mood_distribution": mood_distribution,
         "entries_this_week": entries_this_week,

@@ -1,5 +1,5 @@
 from flask_jwt_extended import JWTManager
-
+# third party python packages that adds ,....
 # MongoDB connection is initialized in this module
 from pymongo import MongoClient
 import os

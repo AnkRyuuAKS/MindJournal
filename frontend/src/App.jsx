@@ -10,6 +10,8 @@ import NewEntryPage from './pages/NewEntryPage';
 import EditEntryPage from './pages/EditEntryPage';
 import ViewEntryPage from './pages/ViewEntryPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import DSAPage from './pages/DSAPage';
+import NewDSAPage from './pages/NewDSAPage';
 
 export default function App() {
   return (
@@ -84,6 +86,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <AnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dsa"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DSAPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dsa/new"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NewDSAPage />
                 </Layout>
               </ProtectedRoute>
             }
