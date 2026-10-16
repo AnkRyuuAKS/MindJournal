@@ -1,4 +1,5 @@
-import { api } from './authClient';
+import { api } from '../services/axios';
+
 
 export const getEntries = async (params = {}) => {
   const response = await api.get('/api/entries', { params });

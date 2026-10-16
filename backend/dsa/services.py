@@ -7,6 +7,7 @@ dsa_collection = mongo_db["dsa_questions"]
 
 
 def _serialize(doc):
+    # it converts(maps) the _id of the mongodb ids into id
     doc["id"] = str(doc.pop("_id"))
     if "user_id" in doc:
         doc["user_id"] = str(doc["user_id"])
@@ -18,6 +19,7 @@ def create_question(user_id: str, data: dict) -> dict:
     description = data.get("description", "").strip()
     approach = data.get("approach", "").strip()
     if not heading:
+        # we can also reture a jsonify but this is handled by routes
         return {"error": "Heading is required."}
     now = datetime.now(timezone.utc)
     doc = {

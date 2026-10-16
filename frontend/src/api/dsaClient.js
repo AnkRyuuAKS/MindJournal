@@ -1,4 +1,5 @@
-import { api } from './authClient';
+import { api } from '../services/axios';
+
 
 export const getDSAQuestions = async (params = {}) => {
   const res = await api.get('/api/dsa', { params });

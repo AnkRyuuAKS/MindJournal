@@ -7,7 +7,7 @@ const navItems = [
   { to: '/entries/new', icon: '✏️', label: 'New Entry' },
   { to: '/dsa', icon: '🧠', label: 'DSA Revision' },
   { to: '/dsa/new', icon: '⚡', label: 'New DSA Card' },
-  { to: '/analytics', icon: '📊', label: 'Analytics' },
+  { to: '/ai-analytics', icon: '📊', label: 'AI-Analytics' },
 ];
 
 export default function Layout({ children }) {

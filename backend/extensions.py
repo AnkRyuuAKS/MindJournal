@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize MongoDB client
+# Initialize MongoDB client(it automatically creats once)
 mongo_client = MongoClient(
     os.getenv("MONGO_URI", "mongodb://localhost:27017/mindjournal"),
     serverSelectionTimeoutMS=5000,

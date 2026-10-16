@@ -1,4 +1,5 @@
-import { api } from './authClient';
+import { api } from '../services/axios';
+
 
 export const uploadImage = async (file) => {
   const formData = new FormData();
